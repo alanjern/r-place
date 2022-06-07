@@ -1,0 +1,85 @@
+---
+title: "Generate an animation of the most prolific user's activity"
+author: "Alan Jern"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries}
+library(DBI)
+library(RPostgres)
+library(tidyverse)
+library(lubridate)
+library(gganimate)
+```
+
+```{r db-connect}
+con <- dbConnect(RPostgres::Postgres(),
+                 dbname = 'rplace',
+                 host = 'localhost',
+                 port = '5432',
+                 user = 'alanjern',
+                 password = '')
+pixels <- tbl(con, "pixels")
+```
+
+
+```{r}
+
+top_user_id <- pixels |> group_by(user_id) |> 
+  summarize(num_pixels = n()) |> 
+  slice_max(num_pixels, order_by = num_pixels, n = 1) |> 
+  collect()
+
+```
+
+```{r}
+id <- top_user_id$user_id
+
+top_user_pixels <- pixels |> 
+  filter(user_id == id) |> 
+  collect() |> 
+  separate(coordinate,
+           c("x1","y1","x2","y2")) |>
+  mutate(x1 = as.numeric(x1),
+         y1 = 1999-as.numeric(y1),
+         x2 = as.numeric(x2),
+         y2 = 1999-as.numeric(y2)) |>
+  arrange(timestamp)
+  
+```
+
+```{r fig.dim=c(8,8)}
+library(png)
+library(ggpubr)
+rplace_final <- readPNG(source = "final-rplace-faded.png")
+
+p <- ggplot(data = top_user_pixels) +
+  background_image(rplace_final) +
+  geom_path(aes(x = x1, y = y1), alpha = 0.4) +
+  geom_point(aes(x = x1, y = y1), color = "deeppink2") +
+  theme(legend.position = "none",
+        axis.ticks = element_blank()) +
+  scale_x_continuous(limits = c(0,1999),
+                     labels = NULL,
+                     expand = c(0,0)) +
+  scale_y_continuous(limits = c(0,1999),
+                     labels = NULL,
+                     expand = c(0,0)) +
+  labs(title = "r/place 2022 activity of the most active user",
+       subtitle = "{frame_along}",
+       x = NULL,
+       y = NULL,
+       caption = "Data: Reddit") +
+  transition_reveal(timestamp)
+
+#animate(p, fps = 10, duration = 30, end_pause = 20)
+animate(p, fps = 10, duration = 30, end_pause = 20,
+       height = 8, width = 8, units = "in", res = 150)
+anim_save("most_active_user_activity.gif")
+```
+
