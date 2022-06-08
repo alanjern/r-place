@@ -6,3 +6,5 @@ To run this code, you need to download the [Reddit r/place data](https://www.red
 * `user_id`: text
 * `pixel_color`: text
 * `coordinate`: text
+
+For more analysis, see my full post at [here](https://alanjern.github.io/post/an-analysis-of-reddits-r/place/).
